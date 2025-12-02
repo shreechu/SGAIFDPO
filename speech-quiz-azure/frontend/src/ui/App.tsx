@@ -2218,7 +2218,7 @@ function AppContent() {
                       borderRadius: 8,
                       marginBottom: 16 
                     }}>
-                      <strong style={{ color: "#c62828" }}>Topics not covered ({unansweredTopics.length}):</strong>
+                      <strong style={{ color: "#c62828" }}>Questions viewed but not answered ({unansweredTopics.length}):</strong>
                       <ul style={{ margin: "8px 0 0 20px", paddingLeft: 0 }}>
                         {unansweredTopics.map(q => (
                           <li key={q.id} style={{ marginBottom: 4, color: "#d32f2f" }}>

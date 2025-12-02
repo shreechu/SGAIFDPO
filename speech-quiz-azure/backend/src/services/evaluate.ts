@@ -29,13 +29,17 @@ const buildPrompt = (transcript: string, question: any, conversationHistory?: st
        "Architect's response: " + transcript,
        context,
        "",
-       "Technical Scoring Guidelines (Be Lenient):",
-       "- Score 70-90 for answers that show general understanding of Azure concepts, even if not perfectly articulated",
-       "- Score 50-70 for responses that demonstrate awareness of the problem space and show willingness to learn",
-       "- Give credit for attempting to address the CTO's concern, even if missing specific technical details",
-       "- Recognize conversational responses that build rapport over perfect technical accuracy",
-       "- Value practical thinking and business awareness as much as specific Azure terminology",
-       "- Don't penalize for missing buzzwords if the core concept is understood",
+       "Technical Scoring Guidelines (Strict Evaluation):",
+       "- Score 90-100 ONLY for exceptional answers with specific Azure service names, implementation details, and real-world examples",
+       "- Score 75-89 for strong technical depth covering ALL key concepts with proper Azure terminology",
+       "- Score 60-74 for adequate understanding but missing specifics or best practices",
+       "- Score 40-59 for weak responses showing surface-level knowledge without depth",
+       "- Score 20-39 for poor responses with significant gaps or incorrect information",
+       "- Below 20 for completely off-topic or irrelevant answers",
+       "- Demand specific Azure service names (e.g., Azure Front Door, Traffic Manager, Availability Zones)",
+       "- Require concrete implementation steps, not vague concepts",
+       "- Penalize generic answers that could apply to any cloud provider",
+       "- Expect quantifiable metrics (SLAs, RTO, RPO, uptime percentages)",
        "",
        "Sentiment Scoring:",
        "- confidence: Natural authority without arrogance. Comfortable saying 'let me explore that' or 'here's what I recommend'",
@@ -52,11 +56,15 @@ export default async function evaluate(transcript: string, question: any) {
   try {
      const endpoint = process.env.AZURE_OPENAI_ENDPOINT || await getSecret("AZURE_OPENAI_ENDPOINT");
      const apiKey = process.env.AZURE_OPENAI_API_KEY || await getSecret("AZURE_OPENAI_API_KEY");
+     const deployment = process.env.AZURE_OPENAI_DEPLOYMENT || await getSecret("AZURE_OPENAI_DEPLOYMENT");
      
-     if (!endpoint || !apiKey) throw new Error("Azure OpenAI not configured");
+     if (!endpoint || !apiKey || !deployment) throw new Error("Azure OpenAI not configured");
+     
+     // Construct full Azure OpenAI chat completions URL
+     const fullUrl = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=2025-01-01-preview`;
      
      // Use Azure OpenAI chat completions API
-     const response = await fetch(endpoint, {
+     const response = await fetch(fullUrl, {
         method: "POST",
         headers: {
            "Content-Type": "application/json",
@@ -75,6 +83,8 @@ export default async function evaluate(transcript: string, question: any) {
      });
      
      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Azure OpenAI API error: ${response.status} ${response.statusText}`, errorText);
         throw new Error(`Azure OpenAI API error: ${response.status} ${response.statusText}`);
      }
      
@@ -91,7 +101,7 @@ export default async function evaluate(transcript: string, question: any) {
      }
      // fallback to local scoring
      return localScore(transcript, question);
-  } catch (err) {
+  } catch (err: any) {
      console.warn("Azure OpenAI evaluation failed, falling back:", err?.message || err);
      return localScore(transcript, question);
   }
@@ -104,20 +114,23 @@ function localScore(transcript: string, question: any) {
   for (const kp of keyPhrases) {
      if (kp.split(" ").every(tok => low.includes(tok))) matched.push(kp);
   }
-  // More lenient scoring: give partial credit and boost overall score
+  // Strict scoring - no minimum floor, must earn every point
   const matchRate = matched.length / Math.max(1, keyPhrases.length);
-  const baseScore = Math.round(matchRate * 100);
-  // Boost: minimum 60 if any answer given, add 15 points to bring scores up
-  const score = Math.min(100, Math.max(60, baseScore + 15));
+  // Apply penalty for incomplete coverage - reduce by 20% if less than 70% match
+  const completionPenalty = matchRate < 0.7 ? 0.8 : 1.0;
+  const baseScore = Math.round(matchRate * 100 * completionPenalty);
+  const score = Math.min(100, baseScore);
   const missing = keyPhrases.filter(k => !matched.includes(k));
   
   let feedback = "";
   if (matched.length === keyPhrases.length) {
-    feedback = "Excellent — covered all key points clearly.";
+    feedback = "Strong coverage of key topics. Ensure you're providing specific Azure service examples and implementation details.";
+  } else if (matched.length >= keyPhrases.length * 0.7) {
+    feedback = `Partial coverage (${matched.length}/${keyPhrases.length} topics). Critical gaps: ${missing.slice(0, 2).join(", ")}. Need more technical depth and specific Azure services.`;
   } else if (matched.length > 0) {
-    feedback = `Good response! You covered ${matched.length} important topics. To strengthen further, consider: ${missing.slice(0, 2).join(", ")}.`;
+    feedback = `Weak response - only ${matched.length}/${keyPhrases.length} key topics addressed. Missing essential concepts: ${missing.slice(0, 3).join(", ")}. Provide concrete Azure examples.`;
   } else {
-    feedback = `Your response shows engagement with the problem. For next time, try focusing on these key areas: ${missing.slice(0, 3).join(", ")}.`;
+    feedback = `Poor response - none of the required topics covered. Must address: ${missing.slice(0, 4).join(", ")}. This requires specific Azure architecture knowledge.`;
   }
   
   // Basic sentiment analysis
@@ -143,27 +156,27 @@ function analyzeSentiment(transcript: string): { confidence: number; empathy: nu
   const hesitantPhrases = ['maybe', 'perhaps', 'might', 'possibly', 'i think', 'not sure', 'probably'];
   const confidentCount = confidentPhrases.filter(p => low.includes(p)).length;
   const hesitantCount = hesitantPhrases.filter(p => low.includes(p)).length;
-  const confidence = Math.min(100, Math.max(50, 65 + (confidentCount * 10) - (hesitantCount * 8)));
+  const confidence = Math.min(100, Math.max(20, 40 + (confidentCount * 12) - (hesitantCount * 18)));
   
   // Empathy indicators (more lenient baseline)
   const empathyPhrases = ['understand', 'appreciate', 'acknowledge', 'concern', 'pain point', 'challenge', 'impact', 'critical', 'partner', 'together'];
   const empathyCount = empathyPhrases.filter(p => low.includes(p)).length;
-  const empathy = Math.min(100, Math.max(55, 60 + (empathyCount * 8)));
+  const empathy = Math.min(100, Math.max(25, 35 + (empathyCount * 10)));
   
   // Executive presence indicators (more lenient - less penalty for jargon)
   const executivePhrases = ['strategy', 'roadmap', 'vision', 'business', 'revenue', 'customer', 'enterprise', 'mission critical', 'priority', 'investment'];
   const technicalJargon = ['api', 'endpoint', 'query', 'cache', 'latency', 'throughput'];
   const executiveCount = executivePhrases.filter(p => low.includes(p)).length;
   const jargonCount = technicalJargon.filter(p => low.includes(p)).length;
-  const concise = wordCount < 150 ? 5 : (wordCount < 250 ? 0 : -5);
-  const executive_presence = Math.min(100, Math.max(55, 60 + (executiveCount * 8) - (jargonCount * 1) + concise));
+  const concise = wordCount < 150 ? 8 : (wordCount < 250 ? 0 : -10);
+  const executive_presence = Math.min(100, Math.max(20, 35 + (executiveCount * 10) - (jargonCount * 6) + concise));
   
   // Professionalism indicators (more lenient - allow conversational tone)
   const professionalPhrases = ['thank you', 'appreciate', 'respectfully', 'collaborate', 'committed', 'accountable', 'transparent'];
   const informalPhrases = ['yeah', 'yep', 'gonna', 'wanna', 'kinda', 'sorta'];
   const professionalCount = professionalPhrases.filter(p => low.includes(p)).length;
   const informalCount = informalPhrases.filter(p => low.includes(p)).length;
-  const professionalism = Math.min(100, Math.max(60, 70 + (professionalCount * 8) - (informalCount * 5)));
+  const professionalism = Math.min(100, Math.max(30, 45 + (professionalCount * 10) - (informalCount * 15)));
   
   return { confidence, empathy, executive_presence, professionalism };
 }
