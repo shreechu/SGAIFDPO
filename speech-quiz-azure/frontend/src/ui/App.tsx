@@ -3,8 +3,9 @@ import { BrowserRouter, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 
-// Configure axios to use backend endpoint
-axios.defaults.baseURL = "https://speech-quiz-app-2382-backend.azurewebsites.net";
+// Configure axios
+axios.defaults.timeout = 30000;
+console.log('Axios configured - baseURL:', axios.defaults.baseURL || 'relative URLs');
 
 type Question = {
   id: string;
@@ -92,7 +93,7 @@ function AppContent() {
   const [error, setError] = useState<string | null>(null);
   const [endOfQuiz, setEndOfQuiz] = useState(false);
   const [showEndConfirmation, setShowEndConfirmation] = useState(false);
-  const [seenQuestions, setSeenQuestions] = useState<Array<{ id: string; idx: number; heading?: string; topic?: string }>>([]);
+  const [seenQuestions, setSeenQuestions] = useState<Array<{ id: string; idx: number; heading?: string; topic?: string; question?: string }>>([]);
   
   const [listening, setListening] = useState(false);
   const [continuousListening, setContinuousListening] = useState(false);
@@ -167,7 +168,9 @@ function AppContent() {
 
   async function fetchToken() {
     try {
+      console.log('Fetching speech token from /api/speech/token...');
       const resp = await axios.get("/api/speech/token");
+      console.log('Speech token received:', resp.status);
       tokenRef.current = resp.data;
       initializeSpeechObjects(resp.data);
     } catch (err: any) {
@@ -288,6 +291,7 @@ function AppContent() {
         });
       }
       
+      console.log(`Fetching question ${i} from /api/nextquestion?idx=${i}...`);
       setLoading(true);
       setError(null);
       
@@ -314,7 +318,20 @@ function AppContent() {
       setSpeaking(false);
       setAudioPaused(false);
       
-      const resp = await axios.get(`/api/nextquestion?idx=${i}`);
+      // Build conversation history from previous answers
+      const conversationHistory = seenQuestions
+        .filter(sq => answers[sq.id] && sq.question)
+        .map(sq => ({
+          question: sq.question || '',
+          answer: answers[sq.id]
+        }));
+      
+      // Use POST to send conversation history for context-aware questions
+      const resp = await axios.post(`/api/nextquestion`, {
+        idx: i,
+        conversationHistory: conversationHistory.length > 0 ? conversationHistory : undefined
+      });
+      console.log('Question response received:', resp.status, resp.data);
       setQuestion(resp.data.question);
       setIdx(resp.data.nextIndex);
       setTranscript("");
@@ -331,7 +348,8 @@ function AppContent() {
             id: resp.data.question.id, 
             idx: i, 
             heading: (resp.data.question as any).heading,
-            topic: (resp.data.question as any).topic 
+            topic: (resp.data.question as any).topic,
+            question: resp.data.question.question 
           }];
         });
       }
@@ -340,8 +358,15 @@ function AppContent() {
         speakText(resp.data.question.question);
       }
     } catch (err: any) {
-      setError(`Failed to load question: ${err.message}`);
-      console.error(err);
+      const errorMsg = err.response?.data?.message || err.message || 'Unknown error';
+      const errorDetails = err.response ? `Status: ${err.response.status}` : 'Network connection failed';
+      setError(`Failed to load question: ${errorMsg} (${errorDetails})`);
+      console.error('Fetch question error:', {
+        message: err.message,
+        response: err.response,
+        request: err.request,
+        config: err.config
+      });
     } finally {
       setLoading(false);
     }
@@ -644,7 +669,7 @@ function AppContent() {
               color: "#1a237e",
               textAlign: "center"
             }}>
-              Mission Critical Architect Assessment
+              MCS Consolidated assessment and TCL readiness
             </h1>
             <p style={{ 
               fontSize: 16, 
@@ -1715,7 +1740,7 @@ function AppContent() {
             marginBottom: 4,
             textShadow: "0 2px 4px rgba(0,0,0,0.1)"
           }}>
-            Mission Critical Architect Assessment
+            MCS Consolidated assessment and TCL readiness
           </h1>
           <p style={{ fontSize: 16, opacity: 0.95 }}>
             Azure Reliability & Performance Readiness
@@ -1729,27 +1754,6 @@ function AppContent() {
           padding: 20,
           marginBottom: 24
         }}>
-          <div style={{
-            padding: 16,
-            background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-            borderRadius: 12,
-            color: "white",
-            marginBottom: 16
-          }}>
-            <p style={{ marginBottom: 12, fontSize: 16, fontWeight: 600 }}>
-              <strong>About this conversation:</strong>
-            </p>
-            <p style={{ fontSize: 15, lineHeight: 1.6, opacity: 0.95 }}>
-              You'll have a natural, conversational exchange with Mark, CTO at Zava. He's dealing with reliability issues and needs practical guidance on Azure architecture, resiliency patterns, and Well-Architected Framework principles.
-            </p>
-            <p style={{ fontSize: 15, lineHeight: 1.6, opacity: 0.95, marginTop: 8 }}>
-              Speak naturally{userProfile.name ? `, ${userProfile.name.split(' ')[0]}` : ''} - this isn't a test with "right answers." It's about demonstrating consultative skills: listening, asking clarifying questions, building on the conversation, and showing deep Azure expertise while staying business-focused.
-            </p>
-            <p style={{ fontSize: 14, lineHeight: 1.5, opacity: 0.9, marginTop: 8, fontStyle: "italic" }}>
-              💡 Tip: The bot pauses when you start speaking and naturally follows the conversation flow.
-            </p>
-          </div>
-
           {/* Auto-read toggle */}
           <div style={{ 
             display: "flex", 
