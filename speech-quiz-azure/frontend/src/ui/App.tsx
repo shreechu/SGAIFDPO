@@ -4,7 +4,7 @@ import axios from "axios";
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 
 // Configure axios to use backend endpoint
-axios.defaults.baseURL = "http://localhost:7071";
+axios.defaults.baseURL = "https://speech-quiz-app-2382-backend.azurewebsites.net";
 
 type Question = {
   id: string;
@@ -1737,13 +1737,16 @@ function AppContent() {
             marginBottom: 16
           }}>
             <p style={{ marginBottom: 12, fontSize: 16, fontWeight: 600 }}>
-              <strong>CTO of Zava speaks{userProfile.name ? ` to ${userProfile.name}` : ''}:</strong>
+              <strong>About this conversation:</strong>
             </p>
             <p style={{ fontSize: 15, lineHeight: 1.6, opacity: 0.95 }}>
-              Our mission-critical app has had too many outages, and our support experience hasn't met expectations. I need a practical plan that improves reliability quickly, shortens detection and recovery times, and brings spend under control without adding risk.
+              You'll have a natural, conversational exchange with Mark, CTO at Zava. He's dealing with reliability issues and needs practical guidance on Azure architecture, resiliency patterns, and Well-Architected Framework principles.
             </p>
             <p style={{ fontSize: 15, lineHeight: 1.6, opacity: 0.95, marginTop: 8 }}>
-              Speak to me directly{userProfile.name ? `, ${userProfile.name.split(' ')[0]}` : ''}. Be clear, pragmatic, and back your recommendations with Azure best practices.
+              Speak naturally{userProfile.name ? `, ${userProfile.name.split(' ')[0]}` : ''} - this isn't a test with "right answers." It's about demonstrating consultative skills: listening, asking clarifying questions, building on the conversation, and showing deep Azure expertise while staying business-focused.
+            </p>
+            <p style={{ fontSize: 14, lineHeight: 1.5, opacity: 0.9, marginTop: 8, fontStyle: "italic" }}>
+              💡 Tip: The bot pauses when you start speaking and naturally follows the conversation flow.
             </p>
           </div>
 

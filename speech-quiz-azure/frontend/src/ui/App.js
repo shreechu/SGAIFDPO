@@ -4,7 +4,7 @@ import { BrowserRouter, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 // Configure axios to use backend endpoint
-axios.defaults.baseURL = "http://localhost:7071";
+axios.defaults.baseURL = "https://speech-quiz-app-2382-backend.azurewebsites.net";
 export default function App() {
     return (_jsx(BrowserRouter, { children: _jsx(AppContent, {}) }));
 }

@@ -4,7 +4,7 @@
       "topic": "Introduction",
       "difficulty": "easy",
       "heading": "Opening — Mark Starts",
-      "question": "I'm Mark, CTO at Zava, where I oversee our entire technology landscape — infrastructure, platform services, engineering, security, and reliability strategy. Our e-commerce environment is mission critical, and any downtime immediately impacts revenue and customer trust. Thanks for joining today. Before we dive into the specific issues, could you introduce yourself and your role at Microsoft?",
+      "question": "Hey, thanks for making time today. I'm Mark, CTO at Zava. We run a pretty complex e-commerce platform, and honestly, we've been having some stability issues that are keeping me up at night. Every outage hits revenue hard and shakes customer confidence. Before we get into the weeds, tell me a bit about yourself and how you typically help companies in our situation?",
       "key_phrases": [
          "Mission Critical Team",
          "platform resiliency engineering",
@@ -21,7 +21,7 @@
       "topic": "Recent Instability",
       "difficulty": "medium",
       "heading": "Business Risk & Impact",
-      "question": "We've seen more instability lately. Even small disruptions have outsized impact on revenue and customer experience. It feels like the risk profile is increasing. What's your assessment?",
+      "question": "So here's what's worrying me - we've had more incidents in the past quarter than all of last year. And it's not just frequency, it's impact. A 15-minute blip last month cost us real money and customer trust. The board is asking questions. Talk to me about what might be driving this. Are we just growing pains, or is something fundamentally wrong with how we're architected?",
       "key_phrases": [
          "fault domains",
          "zone alignment",
@@ -37,7 +37,7 @@
       "topic": "Zonal Architecture",
       "difficulty": "hard",
       "heading": "Zonal Adoption & Gaps",
-      "question": "One area my team raised is inconsistent zonal adoption. What's the real exposure here, and how do we fix it?",
+      "question": "My infrastructure lead mentioned something about our zonal coverage being inconsistent. Some services are zone-redundant, others aren't. I'll be honest, I'm not 100% clear on the implications. Walk me through what that actually means for our risk profile and what good looks like here.",
       "key_phrases": [
          "zonal",
          "zone-redundant",
@@ -55,7 +55,7 @@
       "topic": "Zone Mapping",
       "difficulty": "medium",
       "heading": "Physical vs Logical Zones",
-      "question": "Another thing I hear from peers is frustration around physical and logical zone mapping being opaque. How does that affect us?",
+      "question": "I was talking to another CTO last week, and they mentioned this thing about Azure zones being logical, not physical, and how that can bite you. Something about mapping across subscriptions? That went over my head. Should I care about this?",
       "key_phrases": [
          "physical-to-logical mapping",
          "hardware expansion",
@@ -70,7 +70,7 @@
       "topic": "Capacity Constraints",
       "difficulty": "hard",
       "heading": "Regional Capacity Issues",
-      "question": "My teams have seen 'allocation failed' errors and scaling delays. Are certain regions constrained, and how do we mitigate that?",
+      "question": "We've hit these weird 'allocation failed' errors a few times during peak traffic. Our autoscaling just... didn't scale. The team says it's Azure capacity constraints in our region. That sounds like something we can't control. What am I supposed to do about that? Just hope for the best?",
       "key_phrases": [
          "SKU-specific capacity",
          "GPU constraints",
@@ -87,7 +87,7 @@
       "topic": "Platform Updates",
       "difficulty": "medium",
       "heading": "Azure Update Impact",
-      "question": "Some issues appear to correlate with Azure updates. Can those updates cause instability for us?",
+      "question": "Here's something that bugs me - we've tracked a couple incidents back to Azure platform updates. Things we had no visibility into. How much should I worry about Microsoft pushing updates that could break our stuff? And what control do I actually have here?",
       "key_phrases": [
          "update domain isolation",
          "zonal redundancy",
@@ -102,7 +102,7 @@
       "topic": "Incident Response",
       "difficulty": "medium",
       "heading": "Support Speed & Escalation",
-      "question": "When incidents occur, support response feels too slow and too disconnected. How does Mission Critical change that?",
+      "question": "Let me be blunt - when we're down, our current support experience feels like throwing tickets into a black hole. We open a Sev-A, and it takes way too long to get someone who actually understands our architecture. What's different about Mission Critical support? Why should I believe it'll be better?",
       "key_phrases": [
          "engineering-first escalation",
          "Azure product groups",
@@ -116,7 +116,7 @@
       "topic": "RCA Quality",
       "difficulty": "hard",
       "heading": "Engineering RCA Depth",
-      "question": "We need RCAs with more substance. What we've been getting is too high-level. What should a proper Mission Critical RCA include?",
+      "question": "The RCAs we get after incidents are basically useless. Generic, surface-level stuff that doesn't help us prevent the next one. My engineers need real root cause analysis with actual technical depth. What does a Mission Critical RCA look like? Give me specifics.",
       "key_phrases": [
          "deep engineering analysis",
          "causal chains",
@@ -132,7 +132,7 @@
       "topic": "Security Posture",
       "difficulty": "hard",
       "heading": "Security Assessment",
-      "question": "I need greater assurance that our security posture matches our scale and exposure. What does that assessment look like?",
+      "question": "Our security team is good, but we're growing fast, and I'm not confident we're covering all the bases. Plus, we handle payment data, so the stakes are high. If you were in my shoes, what security gaps would you be most worried about in a scaled Azure environment? And how do you even assess that comprehensively?",
       "key_phrases": [
          "Identity controls",
          "MFA",
@@ -150,7 +150,7 @@
       "topic": "Global Expansion",
       "difficulty": "medium",
       "heading": "Region Pairs & Strategy",
-      "question": "As we expand internationally, we need clarity on region and region pair strategy. What should we know?",
+      "question": "We're planning to expand into Europe and Asia next year. My architect keeps talking about region pairs and data residency and failover strategies. It's making my head spin. Help me understand the decision framework here. What are the big rocks I need to get right?",
       "key_phrases": [
          "Region pairs",
          "Disaster recovery",
@@ -169,7 +169,7 @@
       "topic": "Reliability Roadmap",
       "difficulty": "hard",
       "heading": "Long-Term Modernization",
-      "question": "So what's the forward plan? I need to see a credible path to predictable stability.",
+      "question": "Okay, we've covered a lot of ground here. Now I need the hard part - the actual roadmap. I can't fix everything overnight, and I need to show the board progress. If you were building our reliability transformation plan, what's the sequencing? What do we tackle first, and how long are we talking?",
       "key_phrases": [
          "Zonal Reinforcement",
          "Resiliency Modernization",
@@ -188,7 +188,7 @@
       "topic": "Closing",
       "difficulty": "easy",
       "heading": "Wrap-Up & Commitment",
-      "question": "This was extremely valuable. The depth and clarity help me understand both the risks and the path forward. What's your commitment to Zava?",
+      "question": "This has been really helpful - you've given me a lot to think about. I appreciate the straight talk. So bottom line: if we partner with you and the Mission Critical team, what does that partnership actually look like day-to-day? What should I expect?",
       "key_phrases": [
          "engineering-led predictability",
          "reliability",

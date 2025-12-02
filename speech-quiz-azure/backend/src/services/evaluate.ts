@@ -1,31 +1,45 @@
 
 import { getSecret } from "../utils/secrets";
 
-// Sample deterministic prompt to instruct Azure OpenAI to return JSON
-const buildPrompt = (transcript: string, question: any) => {
+// Conversational evaluation prompt that maintains context around Azure architecture topics
+const buildPrompt = (transcript: string, question: any, conversationHistory?: string) => {
   const keyPhrases = (question.key_phrases || []).map((p:string)=>p.toLowerCase());
+  const context = conversationHistory ? `\n\nPrevious conversation context:\n${conversationHistory}` : "";
+  
   return [
-       "You are an automated deterministic grader evaluating a Microsoft Mission Critical Architect's response to a CTO. Output ONLY valid JSON with these fields:",
-       "- score (0-100 integer): Technical content accuracy",
-       "- matched_phrases (array): Matched key technical phrases",
-       "- missing_phrases (array): Missing key phrases",
-       "- feedback (string): Brief technical feedback",
+       "You are evaluating a natural, conversational exchange between a Microsoft Mission Critical Architect and a CTO. The conversation should feel organic and collaborative, not like a Q&A session.",
+       "",
+       "Evaluate how well the architect:",
+       "1. Maintains conversational flow while staying relevant to Azure architecture topics (Well-Architected Framework, resiliency patterns, zonal adoption, multi-region deployments, failure mode analysis, security)",
+       "2. Responds naturally to the CTO's questions and concerns",
+       "3. Demonstrates deep technical knowledge while keeping it business-focused",
+       "4. Builds on previous points in the conversation naturally",
+       "",
+       "Output ONLY valid JSON with these fields:",
+       "- score (0-100 integer): Technical accuracy and relevance to Azure architecture best practices",
+       "- matched_phrases (array): Key Azure/architecture concepts mentioned",
+       "- missing_phrases (array): Important concepts that should have been covered",
+       "- feedback (string): Conversational and technical feedback - acknowledge what was good and suggest improvements naturally",
        "- sentiment (object): { confidence: 0-100, empathy: 0-100, executive_presence: 0-100, professionalism: 0-100 }",
-       "- sentiment_feedback (string): Brief assessment of communication style",
+       "- sentiment_feedback (string): Assessment of communication style",
+       "- follow_up_suggestion (string): A natural follow-up question or topic the CTO might raise based on this response",
        "",
-       "Reference Microsoft Learn (Azure) best practices for correctness. Grade alignment to Azure architecture guidance, reliability, support, and cost optimization patterns.",
+       "Context - CTO's question/concern: " + (question.question || ""),
+       "Expected technical topics: " + keyPhrases.join(", "),
+       "Architect's response: " + transcript,
+       context,
        "",
-       "Question: " + (question.question || ""),
-       "Expected key phrases: " + keyPhrases.join(", "),
-       "Architect's answer: " + transcript,
+       "Technical Scoring:",
+       "- Favor conversational explanations that reference Azure Well-Architected Framework pillars (Reliability, Security, Cost Optimization, Operational Excellence, Performance)",
+       "- Look for practical patterns: availability zones, region pairs, zone-redundant services, autoscaling, circuit breakers, retry policies, chaos engineering",
+       "- Recognize when architect builds on previous topics or naturally connects concepts",
+       "- Value both depth AND accessibility - avoiding jargon overload while staying technically accurate",
        "",
-       "Technical Scoring: Match phrases case-insensitively. Give proportional score based on key phrases matched. Prefer Azure terminology (Azure Advisor, SLOs/error budgets, canary/blue-green, autoscale, Reservations/Savings Plans).",
-       "",
-       "Sentiment Scoring Guidelines:",
-       "- confidence: 0-30 (hesitant, uncertain), 31-60 (moderately confident), 61-100 (assured, authoritative). Look for definitive language, lack of hedging, strong recommendations.",
-       "- empathy: 0-30 (dismissive), 31-60 (acknowledges concerns), 61-100 (deeply understands pain points, shows partnership). Look for validation of CTO concerns, customer-first language.",
-       "- executive_presence: 0-30 (too technical/rambling), 31-60 (clear but basic), 61-100 (strategic, concise, business-focused). Look for business impact framing, strategic thinking, executive communication style.",
-       "- professionalism: 0-30 (casual/inappropriate), 31-60 (adequate), 61-100 (polished, respectful, consultative). Look for respectful tone, ownership, accountability.",
+       "Sentiment Scoring:",
+       "- confidence: Natural authority without arrogance. Comfortable saying 'let me explore that' or 'here's what I recommend'",
+       "- empathy: Active listening, acknowledging CTO concerns, collaborative problem-solving tone",
+       "- executive_presence: Strategic framing, business impact focus, concise but thorough, comfort with ambiguity",
+       "- professionalism: Consultative partnership, respectful dialogue, owning recommendations",
        "",
        "Output JSON now."
   ].join("\n\n");
