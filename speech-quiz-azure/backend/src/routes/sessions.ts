@@ -1,28 +1,12 @@
 import { Router } from "express";
-import * as fs from "fs";
-import * as path from "path";
+import { getAllSessions, saveSession } from "../services/store";
 
 const router = Router();
 
-const SESSIONS_FILE = path.join(__dirname, "../../data/sessions.json");
-
-// Ensure data directory exists
-function ensureDataDir() {
-  const dir = path.dirname(SESSIONS_FILE);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  if (!fs.existsSync(SESSIONS_FILE)) {
-    fs.writeFileSync(SESSIONS_FILE, JSON.stringify([], null, 2));
-  }
-}
-
-// Get all sessions
-router.get("/sessions", (req, res) => {
+// Get all sessions (from Cosmos DB or local storage)
+router.get("/sessions", async (req, res) => {
   try {
-    ensureDataDir();
-    const data = fs.readFileSync(SESSIONS_FILE, "utf-8");
-    const sessions = JSON.parse(data);
+    const sessions = await getAllSessions();
     // Sort by timestamp descending (newest first)
     sessions.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     res.json(sessions);
@@ -32,21 +16,11 @@ router.get("/sessions", (req, res) => {
   }
 });
 
-// Save a new session
-router.post("/sessions", (req, res) => {
+// Save a new session (to Cosmos DB or local storage)
+router.post("/sessions", async (req, res) => {
   try {
-    ensureDataDir();
     const sessionData = req.body;
-    
-    // Read existing sessions
-    const data = fs.readFileSync(SESSIONS_FILE, "utf-8");
-    const sessions = JSON.parse(data);
-    
-    // Add new session
-    sessions.push(sessionData);
-    
-    // Write back to file
-    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2));
+    const savedSession = await saveSession(sessionData);
     
     res.json({ success: true, message: "Session saved successfully" });
   } catch (err: any) {
