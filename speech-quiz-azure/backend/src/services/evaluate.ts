@@ -29,11 +29,13 @@ const buildPrompt = (transcript: string, question: any, conversationHistory?: st
        "Architect's response: " + transcript,
        context,
        "",
-       "Technical Scoring:",
-       "- Favor conversational explanations that reference Azure Well-Architected Framework pillars (Reliability, Security, Cost Optimization, Operational Excellence, Performance)",
-       "- Look for practical patterns: availability zones, region pairs, zone-redundant services, autoscaling, circuit breakers, retry policies, chaos engineering",
-       "- Recognize when architect builds on previous topics or naturally connects concepts",
-       "- Value both depth AND accessibility - avoiding jargon overload while staying technically accurate",
+       "Technical Scoring Guidelines (Be Lenient):",
+       "- Score 70-90 for answers that show general understanding of Azure concepts, even if not perfectly articulated",
+       "- Score 50-70 for responses that demonstrate awareness of the problem space and show willingness to learn",
+       "- Give credit for attempting to address the CTO's concern, even if missing specific technical details",
+       "- Recognize conversational responses that build rapport over perfect technical accuracy",
+       "- Value practical thinking and business awareness as much as specific Azure terminology",
+       "- Don't penalize for missing buzzwords if the core concept is understood",
        "",
        "Sentiment Scoring:",
        "- confidence: Natural authority without arrogance. Comfortable saying 'let me explore that' or 'here's what I recommend'",
@@ -102,9 +104,21 @@ function localScore(transcript: string, question: any) {
   for (const kp of keyPhrases) {
      if (kp.split(" ").every(tok => low.includes(tok))) matched.push(kp);
   }
-  const score = Math.round((matched.length / Math.max(1, keyPhrases.length)) * 100);
+  // More lenient scoring: give partial credit and boost overall score
+  const matchRate = matched.length / Math.max(1, keyPhrases.length);
+  const baseScore = Math.round(matchRate * 100);
+  // Boost: minimum 60 if any answer given, add 15 points to bring scores up
+  const score = Math.min(100, Math.max(60, baseScore + 15));
   const missing = keyPhrases.filter(k => !matched.includes(k));
-  const feedback = matched.length === keyPhrases.length ? "Excellent — covered all key points." : `You mentioned ${matched.length} key items. Missing: ${missing.join(", ")}`;
+  
+  let feedback = "";
+  if (matched.length === keyPhrases.length) {
+    feedback = "Excellent — covered all key points clearly.";
+  } else if (matched.length > 0) {
+    feedback = `Good response! You covered ${matched.length} important topics. To strengthen further, consider: ${missing.slice(0, 2).join(", ")}.`;
+  } else {
+    feedback = `Your response shows engagement with the problem. For next time, try focusing on these key areas: ${missing.slice(0, 3).join(", ")}.`;
+  }
   
   // Basic sentiment analysis
   const sentiment = analyzeSentiment(transcript);
@@ -124,32 +138,32 @@ function analyzeSentiment(transcript: string): { confidence: number; empathy: nu
   const low = transcript.toLowerCase();
   const wordCount = transcript.split(/\s+/).length;
   
-  // Confidence indicators
+  // Confidence indicators (more lenient - start higher, penalize less)
   const confidentPhrases = ['will', 'recommend', 'should', 'must', 'ensure', 'guarantee', 'commit', 'definitely', 'absolutely'];
   const hesitantPhrases = ['maybe', 'perhaps', 'might', 'possibly', 'i think', 'not sure', 'probably'];
   const confidentCount = confidentPhrases.filter(p => low.includes(p)).length;
   const hesitantCount = hesitantPhrases.filter(p => low.includes(p)).length;
-  const confidence = Math.min(100, Math.max(30, 50 + (confidentCount * 10) - (hesitantCount * 15)));
+  const confidence = Math.min(100, Math.max(50, 65 + (confidentCount * 10) - (hesitantCount * 8)));
   
-  // Empathy indicators
+  // Empathy indicators (more lenient baseline)
   const empathyPhrases = ['understand', 'appreciate', 'acknowledge', 'concern', 'pain point', 'challenge', 'impact', 'critical', 'partner', 'together'];
   const empathyCount = empathyPhrases.filter(p => low.includes(p)).length;
-  const empathy = Math.min(100, Math.max(30, 40 + (empathyCount * 8)));
+  const empathy = Math.min(100, Math.max(55, 60 + (empathyCount * 8)));
   
-  // Executive presence indicators
+  // Executive presence indicators (more lenient - less penalty for jargon)
   const executivePhrases = ['strategy', 'roadmap', 'vision', 'business', 'revenue', 'customer', 'enterprise', 'mission critical', 'priority', 'investment'];
   const technicalJargon = ['api', 'endpoint', 'query', 'cache', 'latency', 'throughput'];
   const executiveCount = executivePhrases.filter(p => low.includes(p)).length;
   const jargonCount = technicalJargon.filter(p => low.includes(p)).length;
-  const concise = wordCount < 150 ? 10 : (wordCount < 250 ? 0 : -10);
-  const executive_presence = Math.min(100, Math.max(30, 45 + (executiveCount * 8) - (jargonCount * 3) + concise));
+  const concise = wordCount < 150 ? 5 : (wordCount < 250 ? 0 : -5);
+  const executive_presence = Math.min(100, Math.max(55, 60 + (executiveCount * 8) - (jargonCount * 1) + concise));
   
-  // Professionalism indicators
+  // Professionalism indicators (more lenient - allow conversational tone)
   const professionalPhrases = ['thank you', 'appreciate', 'respectfully', 'collaborate', 'committed', 'accountable', 'transparent'];
   const informalPhrases = ['yeah', 'yep', 'gonna', 'wanna', 'kinda', 'sorta'];
   const professionalCount = professionalPhrases.filter(p => low.includes(p)).length;
   const informalCount = informalPhrases.filter(p => low.includes(p)).length;
-  const professionalism = Math.min(100, Math.max(40, 60 + (professionalCount * 8) - (informalCount * 12)));
+  const professionalism = Math.min(100, Math.max(60, 70 + (professionalCount * 8) - (informalCount * 5)));
   
   return { confidence, empathy, executive_presence, professionalism };
 }
