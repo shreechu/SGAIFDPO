@@ -156,27 +156,27 @@ function analyzeSentiment(transcript: string): { confidence: number; empathy: nu
   const hesitantPhrases = ['maybe', 'perhaps', 'might', 'possibly', 'i think', 'not sure', 'probably'];
   const confidentCount = confidentPhrases.filter(p => low.includes(p)).length;
   const hesitantCount = hesitantPhrases.filter(p => low.includes(p)).length;
-  const confidence = Math.min(100, Math.max(20, 40 + (confidentCount * 12) - (hesitantCount * 18)));
+  const confidence = Math.min(100, Math.max(0, 15 + (confidentCount * 15) - (hesitantCount * 20)));
   
   // Empathy indicators (more lenient baseline)
   const empathyPhrases = ['understand', 'appreciate', 'acknowledge', 'concern', 'pain point', 'challenge', 'impact', 'critical', 'partner', 'together'];
   const empathyCount = empathyPhrases.filter(p => low.includes(p)).length;
-  const empathy = Math.min(100, Math.max(25, 35 + (empathyCount * 10)));
+  const empathy = Math.min(100, Math.max(0, 10 + (empathyCount * 12)));
   
   // Executive presence indicators (more lenient - less penalty for jargon)
   const executivePhrases = ['strategy', 'roadmap', 'vision', 'business', 'revenue', 'customer', 'enterprise', 'mission critical', 'priority', 'investment'];
   const technicalJargon = ['api', 'endpoint', 'query', 'cache', 'latency', 'throughput'];
   const executiveCount = executivePhrases.filter(p => low.includes(p)).length;
   const jargonCount = technicalJargon.filter(p => low.includes(p)).length;
-  const concise = wordCount < 150 ? 8 : (wordCount < 250 ? 0 : -10);
-  const executive_presence = Math.min(100, Math.max(20, 35 + (executiveCount * 10) - (jargonCount * 6) + concise));
+  const concise = wordCount < 150 ? 10 : (wordCount < 250 ? 0 : -15);
+  const executive_presence = Math.min(100, Math.max(0, 12 + (executiveCount * 12) - (jargonCount * 8) + concise));
   
   // Professionalism indicators (more lenient - allow conversational tone)
   const professionalPhrases = ['thank you', 'appreciate', 'respectfully', 'collaborate', 'committed', 'accountable', 'transparent'];
   const informalPhrases = ['yeah', 'yep', 'gonna', 'wanna', 'kinda', 'sorta'];
   const professionalCount = professionalPhrases.filter(p => low.includes(p)).length;
   const informalCount = informalPhrases.filter(p => low.includes(p)).length;
-  const professionalism = Math.min(100, Math.max(30, 45 + (professionalCount * 10) - (informalCount * 15)));
+  const professionalism = Math.min(100, Math.max(0, 20 + (professionalCount * 12) - (informalCount * 18)));
   
   return { confidence, empathy, executive_presence, professionalism };
 }
