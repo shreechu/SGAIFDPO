@@ -124,13 +124,17 @@ function localScore(transcript: string, question: any) {
   
   let feedback = "";
   if (matched.length === keyPhrases.length) {
-    feedback = "Strong coverage of key topics. Ensure you're providing specific Azure service examples and implementation details.";
+    feedback = `Excellent! You covered all ${keyPhrases.length} key topics: ${matched.slice(0, 3).join(", ")}${matched.length > 3 ? `, and ${matched.length - 3} more` : ""}. To elevate this to exceptional: 1) Include specific Azure service names (e.g., Azure Front Door, Traffic Manager, Availability Zones), 2) Mention quantifiable metrics (SLAs, RTO, RPO), 3) Provide real-world implementation examples or customer scenarios.`;
   } else if (matched.length >= keyPhrases.length * 0.7) {
-    feedback = `Partial coverage (${matched.length}/${keyPhrases.length} topics). Critical gaps: ${missing.slice(0, 2).join(", ")}. Need more technical depth and specific Azure services.`;
+    const strengths = matched.length > 0 ? `\n\n✓ What you did well: You addressed ${matched.slice(0, 2).join(", ")}${matched.length > 2 ? `, and ${matched.length - 2} other topic(s)` : ""}.` : "";
+    const improvements = `\n\n✗ Areas for improvement:\n  - Critical gaps: ${missing.slice(0, 2).join(", ")}\n  - Add specific Azure services and features\n  - Include implementation steps or best practices\n  - Mention relevant SLAs, uptime percentages, or recovery metrics`;
+    feedback = `Partial coverage (${matched.length}/${keyPhrases.length} topics).${strengths}${improvements}`;
   } else if (matched.length > 0) {
-    feedback = `Weak response - only ${matched.length}/${keyPhrases.length} key topics addressed. Missing essential concepts: ${missing.slice(0, 3).join(", ")}. Provide concrete Azure examples.`;
+    const strengths = `\n\n✓ Positive: You mentioned ${matched.slice(0, 2).join(", ")}${matched.length > 2 ? `, plus ${matched.length - 2} more` : ""}.`;
+    const improvements = `\n\n✗ Significant gaps (missing ${missing.length} key concepts):\n  - Essential topics to cover: ${missing.slice(0, 3).join(", ")}\n  - Provide concrete Azure architecture examples\n  - Demonstrate understanding of Well-Architected Framework\n  - Explain HOW to implement, not just WHAT to do\n  - Reference specific Azure documentation or patterns`;
+    feedback = `Weak response - only ${matched.length}/${keyPhrases.length} topics addressed.${strengths}${improvements}`;
   } else {
-    feedback = `Poor response - none of the required topics covered. Must address: ${missing.slice(0, 4).join(", ")}. This requires specific Azure architecture knowledge.`;
+    feedback = `Poor response - none of the required topics covered.\n\n✗ You must address these fundamental concepts:\n  1. ${missing.slice(0, 4).join("\n  2. ")}\n\nTo improve: Study Azure architecture best practices, review the Well-Architected Framework, and prepare specific examples of Azure services and implementation patterns. Practice explaining technical concepts with business context.`;
   }
   
   // Basic sentiment analysis
@@ -182,19 +186,43 @@ function analyzeSentiment(transcript: string): { confidence: number; empathy: nu
 }
 
 function generateSentimentFeedback(sentiment: { confidence: number; empathy: number; executive_presence: number; professionalism: number }): string {
-  const feedback: string[] = [];
+  const sections: string[] = [];
   
-  if (sentiment.confidence < 50) feedback.push("Show more confidence and conviction in your recommendations.");
-  else if (sentiment.confidence >= 70) feedback.push("Strong confident delivery.");
+  // Confidence feedback
+  if (sentiment.confidence >= 70) {
+    sections.push(`✓ Confidence (${sentiment.confidence}%): Excellent! You demonstrated strong conviction and authority. Your use of decisive language like "will", "should", "recommend" shows expertise.`);
+  } else if (sentiment.confidence >= 40) {
+    sections.push(`△ Confidence (${sentiment.confidence}%): Moderate confidence shown. To improve: Use more decisive language, avoid hedging words like "maybe", "perhaps", "might". State recommendations clearly with conviction.`);
+  } else {
+    sections.push(`✗ Confidence (${sentiment.confidence}%): Lacks conviction. Issues: Too much hesitation, uncertain language. To improve: Replace "I think" with "I recommend", use "will" instead of "might", state solutions definitively. Practice assertive communication while remaining consultative.`);
+  }
   
-  if (sentiment.empathy < 50) feedback.push("Acknowledge the CTO's concerns more directly.");
-  else if (sentiment.empathy >= 70) feedback.push("Excellent empathy and customer understanding.");
+  // Empathy feedback
+  if (sentiment.empathy >= 70) {
+    sections.push(`✓ Empathy (${sentiment.empathy}%): Outstanding! You actively acknowledged concerns and demonstrated customer understanding. Great use of empathetic language.`);
+  } else if (sentiment.empathy >= 40) {
+    sections.push(`△ Empathy (${sentiment.empathy}%): Some customer awareness shown. To improve: More explicitly acknowledge the CTO's pain points, use phrases like "I understand your concern about...", "I appreciate the challenge...", show you're listening actively.`);
+  } else {
+    sections.push(`✗ Empathy (${sentiment.empathy}%): Minimal customer focus. Issues: Didn't acknowledge concerns or business impact. To improve: Start by validating the CTO's challenges, use empathetic phrases ("understand", "appreciate", "acknowledge"), connect technical solutions to their specific pain points.`);
+  }
   
-  if (sentiment.executive_presence < 50) feedback.push("Frame responses with business impact and strategic value.");
-  else if (sentiment.executive_presence >= 70) feedback.push("Strong executive presence and strategic communication.");
+  // Executive presence feedback
+  if (sentiment.executive_presence >= 70) {
+    sections.push(`✓ Executive Presence (${sentiment.executive_presence}%): Strong strategic communication! You framed responses with business value and maintained executive-level dialogue.`);
+  } else if (sentiment.executive_presence >= 40) {
+    sections.push(`△ Executive Presence (${sentiment.executive_presence}%): Adequate but needs more strategic framing. To improve: Connect technical details to business outcomes (revenue, customer satisfaction, operational efficiency), use strategic terms like "roadmap", "investment", "priority". Keep responses concise yet thorough.`);
+  } else {
+    sections.push(`✗ Executive Presence (${sentiment.executive_presence}%): Too tactical, lacking strategic perspective. Issues: Over-focus on technical details, missing business context. To improve: Lead with business impact, mention strategy/vision/priorities, explain "why this matters to the business", reduce technical jargon, keep responses concise (<150 words when possible).`);
+  }
   
-  if (sentiment.professionalism < 60) feedback.push("Maintain professional tone and language.");
-  else if (sentiment.professionalism >= 80) feedback.push("Professional and consultative approach.");
+  // Professionalism feedback
+  if (sentiment.professionalism >= 80) {
+    sections.push(`✓ Professionalism (${sentiment.professionalism}%): Excellent professional tone! Maintained consultative partnership approach throughout.`);
+  } else if (sentiment.professionalism >= 50) {
+    sections.push(`△ Professionalism (${sentiment.professionalism}%): Generally professional. To improve: Use more consultative language ("collaborate", "partner", "committed"), express appreciation, maintain formal tone, avoid casual expressions.`);
+  } else {
+    sections.push(`✗ Professionalism (${sentiment.professionalism}%): Unprofessional tone detected. Issues: Too casual or informal language. To improve: Eliminate casual words ("yeah", "gonna", "wanna"), use professional phrases ("thank you", "I appreciate", "respectfully"), maintain consultative partnership tone, treat this as an executive conversation.`);
+  }
   
-  return feedback.length ? feedback.join(" ") : "Good overall communication style.";
+  return "\n\nCommunication Assessment:\n" + sections.join("\n\n");
 }
