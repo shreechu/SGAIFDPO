@@ -15,3 +15,14 @@ export async function getSecret(name: string): Promise<string> {
   const sec = await client.getSecret(name);
   return sec.value || "";
 }
+
+// Helper to get all secrets from environment variables
+export function getSecrets() {
+  return {
+    AZURE_OPENAI_API_KEY: process.env.AZURE_OPENAI_API_KEY || "",
+    AZURE_OPENAI_ENDPOINT: process.env.AZURE_OPENAI_ENDPOINT || "",
+    AZURE_OPENAI_DEPLOYMENT: process.env.AZURE_OPENAI_DEPLOYMENT || "",
+    SPEECH_KEY: process.env.SPEECH_KEY || "",
+    SPEECH_REGION: process.env.SPEECH_REGION || ""
+  };
+}

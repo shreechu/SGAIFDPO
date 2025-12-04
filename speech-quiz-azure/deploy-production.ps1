@@ -73,7 +73,7 @@ if ($rgExists -eq "false") {
 
 # Check/Create App Service Plan
 Write-Host "`nChecking App Service Plan..." -ForegroundColor Cyan
-$planName = "speech-quiz-plan"
+$planName = "ASP-sgai01-9d39"
 $planExists = Test-AzureResource "Microsoft.Web/serverfarms" $planName $ResourceGroup
 if (-not $planExists) {
     Write-Host "Creating App Service Plan: $planName" -ForegroundColor Yellow
@@ -262,7 +262,11 @@ npm run build
 # Create deployment package
 Write-Host "Creating backend deployment package..." -ForegroundColor Cyan
 if (Test-Path "../backend-deploy.zip") { Remove-Item "../backend-deploy.zip" -Force }
-Compress-Archive -Path dist,package.json,package-lock.json,node_modules -DestinationPath ../backend-deploy.zip -Force
+# Copy scripts folder with questions.json
+if (Test-Path "scripts") { Remove-Item "scripts" -Recurse -Force }
+Copy-Item -Path "../scripts" -Destination "scripts" -Recurse
+Compress-Archive -Path dist,package.json,package-lock.json,node_modules,scripts -DestinationPath ../backend-deploy.zip -Force
+Remove-Item "scripts" -Recurse -Force
 Pop-Location
 
 Write-Host "Deploying Backend to $BackendAppName..." -ForegroundColor Cyan

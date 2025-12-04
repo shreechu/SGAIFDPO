@@ -49,23 +49,26 @@ function AppContent() {
   const location = useLocation();
   
   // Determine current page from URL path
-  const getPageFromPath = (path: string): 'landing' | 'quiz' | 'admin' | 'adminLogin' | 'confirmSubmission' => {
+  const getPageFromPath = (path: string): 'landing' | 'quiz' | 'admin' | 'adminLogin' | 'adminConfig' | 'confirmSubmission' => {
     if (path === '/') return 'landing';
     if (path === '/quiz') return 'quiz';
     if (path === '/confirm-submission') return 'confirmSubmission';
     if (path === '/admin/login') return 'adminLogin';
+    if (path === '/admin/config') return 'adminConfig';
     if (path === '/admin') return 'admin';
     return 'landing';
   };
 
   const currentPage = getPageFromPath(location.pathname);
+  console.log('Current pathname:', location.pathname, 'Current page:', currentPage);
   
-  const navigateToPage = (page: 'landing' | 'quiz' | 'admin' | 'adminLogin' | 'confirmSubmission') => {
+  const navigateToPage = (page: 'landing' | 'quiz' | 'admin' | 'adminLogin' | 'adminConfig' | 'confirmSubmission') => {
     const paths = {
       'landing': '/',
       'quiz': '/quiz',
       'confirmSubmission': '/confirm-submission',
       'adminLogin': '/admin/login',
+      'adminConfig': '/admin/config',
       'admin': '/admin'
     };
     navigate(paths[page]);
@@ -1044,7 +1047,7 @@ function AppContent() {
                 borderRadius: 12,
                 marginBottom: 24
               }}>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
                   <div>
                     <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>Architect Name</div>
                     <div style={{ fontSize: 18, fontWeight: 700, color: "#1a237e" }}>{selectedSession.userName}</div>
@@ -1052,6 +1055,18 @@ function AppContent() {
                   <div>
                     <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>Email</div>
                     <div style={{ fontSize: 16, fontWeight: 600, color: "#555" }}>{selectedSession.userEmail}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>Technical Confidence</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: "#667eea" }}>
+                      {selectedSession.technicalConfidence || 'N/A'}/10
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>Consultative Confidence</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: "#764ba2" }}>
+                      {selectedSession.consultativeConfidence || 'N/A'}/10
+                    </div>
                   </div>
                   <div>
                     <div style={{ fontSize: 12, color: "#666", marginBottom: 4 }}>Overall Score</div>
@@ -1268,6 +1283,21 @@ function AppContent() {
               </h1>
               <div style={{ display: "flex", gap: 12 }}>
                 <button
+                  onClick={() => navigateToPage('adminConfig')}
+                  style={{
+                    padding: "10px 20px",
+                    backgroundColor: "#2ea44f",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 8,
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: "pointer"
+                  }}
+                >
+                  ⚙️ Configure Quiz
+                </button>
+                <button
                   onClick={() => navigateToPage('landing')}
                   style={{
                     padding: "10px 20px",
@@ -1330,6 +1360,8 @@ function AppContent() {
                   <tr style={{ backgroundColor: "#1a237e" }}>
                     <th style={{ padding: "14px 12px", textAlign: "left", color: "white", fontWeight: 600, borderBottom: "3px solid #667eea" }}>Architect Name</th>
                     <th style={{ padding: "14px 12px", textAlign: "left", color: "white", fontWeight: 600, borderBottom: "3px solid #667eea" }}>Email ID</th>
+                    <th style={{ padding: "14px 12px", textAlign: "center", color: "white", fontWeight: 600, borderBottom: "3px solid #667eea" }}>Tech Confidence</th>
+                    <th style={{ padding: "14px 12px", textAlign: "center", color: "white", fontWeight: 600, borderBottom: "3px solid #667eea" }}>Consult Confidence</th>
                     <th style={{ padding: "14px 12px", textAlign: "center", color: "white", fontWeight: 600, borderBottom: "3px solid #667eea" }}>Evaluation Score</th>
                     <th style={{ padding: "14px 12px", textAlign: "center", color: "white", fontWeight: 600, borderBottom: "3px solid #667eea" }}>Date & Time</th>
                   </tr>
@@ -1337,7 +1369,7 @@ function AppContent() {
                 <tbody>
                   {adminSessions.length === 0 ? (
                     <tr>
-                      <td colSpan={4} style={{ padding: 32, textAlign: "center", color: "#999", fontSize: 16 }}>
+                      <td colSpan={6} style={{ padding: 32, textAlign: "center", color: "#999", fontSize: 16 }}>
                         📭 No evaluations recorded yet
                       </td>
                     </tr>
@@ -1364,6 +1396,32 @@ function AppContent() {
                         </td>
                         <td style={{ padding: "14px 12px", color: "#555" }}>
                           {session.userEmail}
+                        </td>
+                        <td style={{ padding: "14px 12px", textAlign: "center" }}>
+                          <span style={{
+                            backgroundColor: "#667eea",
+                            color: "white",
+                            padding: "6px 16px",
+                            borderRadius: 20,
+                            fontSize: 15,
+                            fontWeight: 600,
+                            display: "inline-block"
+                          }}>
+                            {session.technicalConfidence || 'N/A'}/10
+                          </span>
+                        </td>
+                        <td style={{ padding: "14px 12px", textAlign: "center" }}>
+                          <span style={{
+                            backgroundColor: "#764ba2",
+                            color: "white",
+                            padding: "6px 16px",
+                            borderRadius: 20,
+                            fontSize: 15,
+                            fontWeight: 600,
+                            display: "inline-block"
+                          }}>
+                            {session.consultativeConfidence || 'N/A'}/10
+                          </span>
                         </td>
                         <td style={{ padding: "14px 12px", textAlign: "center" }}>
                           <span style={{
@@ -1693,6 +1751,63 @@ function AppContent() {
 
   if (currentPage === 'admin') {
     return renderAdminDashboard();
+  }
+
+  if (currentPage === 'adminConfig') {
+    return (
+      <div style={{ 
+        minHeight: '100vh', 
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        padding: '2rem',
+        fontFamily: "'Segoe UI', sans-serif"
+      }}>
+        <div style={{
+          maxWidth: '1200px',
+          margin: '0 auto',
+          background: 'white',
+          borderRadius: '20px',
+          padding: '2rem',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+            <h1 style={{ margin: 0, color: '#1a237e' }}>Quiz Configuration</h1>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                onClick={() => navigateToPage('landing')}
+                style={{ 
+                  padding: '10px 20px', 
+                  backgroundColor: '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                🏠 Home
+              </button>
+              <button 
+                onClick={() => navigateToPage('admin')}
+                style={{ 
+                  padding: '10px 20px',
+                  backgroundColor: '#0366d6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                ← Dashboard
+              </button>
+            </div>
+          </div>
+          <p style={{ color: '#666', fontSize: '16px' }}>
+            Admin configuration page is under construction. Please use the Admin Dashboard to view evaluation results.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (currentPage === 'confirmSubmission') {

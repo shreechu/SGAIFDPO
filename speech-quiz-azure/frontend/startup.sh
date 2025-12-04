@@ -1,1 +1,2 @@
-pm2 serve /home/site/wwwroot --no-daemon --spa
+cd $HOME/site/wwwroot
+PORT=8080 npx serve -s . -l $PORT

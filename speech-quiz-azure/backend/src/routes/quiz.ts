@@ -5,17 +5,55 @@ import path from "path";
 import evaluateController from "../services/evaluate";
 import { saveSession } from "../services/store";
 import axios from "axios";
-import { getSecrets } from "../utils/secrets";
+import { getSecret, getSecrets } from "../utils/secrets";
 
 const router = Router();
-const QUESTIONS_PATH = path.resolve(process.cwd(), "../scripts/questions.json");
+// Try multiple paths for questions.json (development vs production)
+const possiblePaths = [
+  path.resolve(process.cwd(), "scripts/questions.json"),
+  path.resolve(process.cwd(), "../scripts/questions.json"),
+  path.resolve(__dirname, "../../scripts/questions.json")
+];
 let questions: any[] = [];
-try {
-  questions = JSON.parse(readFileSync(QUESTIONS_PATH, "utf8"));
-} catch {
-  questions = [];
+for (const questionsPath of possiblePaths) {
+  try {
+    questions = JSON.parse(readFileSync(questionsPath, "utf8"));
+    console.log("✅ Loaded questions from", questionsPath, "count=", questions.length);
+    break;
+  } catch {
+    // Try next path
+  }
 }
-console.log("Loaded questions from", QUESTIONS_PATH, "count=", questions.length);
+if (questions.length === 0) {
+  console.error("❌ Could not load questions.json from any path:", possiblePaths);
+}
+
+// Store quiz sessions with their random question selections
+// Map<sessionId, selectedQuestions[]>
+const quizSessions = new Map<string, any[]>();
+
+// Function to generate random question selection for a quiz session
+function generateQuizQuestions(): any[] {
+  if (questions.length === 0) return [];
+  
+  // First question is always the introduction (index 0)
+  const introQuestion = questions[0];
+  
+  // Get remaining questions (excluding intro)
+  const remainingQuestions = questions.slice(1);
+  
+  // If we have 10 or fewer remaining questions, use all of them
+  if (remainingQuestions.length <= 10) {
+    return [introQuestion, ...remainingQuestions];
+  }
+  
+  // Randomly select 10 questions from the remaining questions
+  const shuffled = [...remainingQuestions].sort(() => Math.random() - 0.5);
+  const selected = shuffled.slice(0, 10);
+  
+  // Return intro + 10 random questions
+  return [introQuestion, ...selected];
+}
 
 // Simple Microsoft Learn links by topic to include with results
 const learnLinksByTopic: Record<string, Array<{ title: string; url: string }>> = {
@@ -109,9 +147,16 @@ Return ONLY the adapted question text, nothing else. Keep it conversational and 
 // Next question endpoint with optional conversation history
 router.post("/nextquestion", async (req, res) => {
   try {
-    const { idx, conversationHistory } = req.body || {};
+    const { idx, conversationHistory, sessionId } = req.body || {};
     const questionIndex = parseInt(String(idx || "0"), 10) || 0;
-    const baseQuestion = questions[questionIndex] || null;
+    
+    // Get session-specific questions if available
+    let sessionQuestions = questions;
+    if (sessionId && quizSessions.has(sessionId)) {
+      sessionQuestions = quizSessions.get(sessionId)!;
+    }
+    
+    const baseQuestion = sessionQuestions[questionIndex] || null;
     
     if (!baseQuestion) {
       return res.json({ question: null, nextIndex: questionIndex + 1 });
@@ -135,9 +180,36 @@ router.post("/nextquestion", async (req, res) => {
 });
 
 // Legacy GET endpoint for backward compatibility
+// Initialize a new quiz session with random questions
+router.post("/start-quiz", (req, res) => {
+  const { sessionId } = req.body;
+  if (!sessionId) {
+    return res.status(400).json({ error: "sessionId required" });
+  }
+  
+  // Generate random question selection for this session
+  const sessionQuestions = generateQuizQuestions();
+  quizSessions.set(sessionId, sessionQuestions);
+  
+  console.log(`🎲 Started quiz session ${sessionId} with ${sessionQuestions.length} questions`);
+  
+  res.json({ 
+    totalQuestions: sessionQuestions.length,
+    message: "Quiz session initialized" 
+  });
+});
+
 router.get("/nextquestion", (req, res) => {
   const idx = parseInt(String(req.query.idx || "0"), 10) || 0;
-  const q = questions[idx] || null;
+  const sessionId = String(req.query.sessionId || "");
+  
+  // If sessionId provided, use session-specific questions
+  let sessionQuestions = questions;
+  if (sessionId && quizSessions.has(sessionId)) {
+    sessionQuestions = quizSessions.get(sessionId)!;
+  }
+  
+  const q = sessionQuestions[idx] || null;
   res.json({ question: q, nextIndex: idx + 1 });
 });
 
@@ -162,7 +234,9 @@ router.post("/evaluate", async (req, res) => {
 router.post("/evaluate-all", async (req, res) => {
   try {
     const { sessionId, answers } = req.body || {};
+    console.log("evaluate-all received:", { sessionId, answersCount: answers?.length, body: req.body });
     if (!Array.isArray(answers) || !answers.length) {
+      console.error("Invalid answers:", { isArray: Array.isArray(answers), length: answers?.length, answers });
       return res.status(400).json({ error: "answers array required" });
     }
 
@@ -174,13 +248,14 @@ router.post("/evaluate-all", async (req, res) => {
       const evaluation = await evaluateController(a.transcript || "", q);
       const links = learnLinksByTopic[q.topic as string] || [];
       results.push({ questionId: q.id, heading: q.heading, topic: q.topic, evaluation, learnLinks: links });
-      try {
-        await saveSession({ sessionId, questionId: q.id, transcript: a.transcript, evaluation, timestamp: new Date().toISOString() });
-      } catch {}
     }
 
     const scores = results.map(r => Number(r.evaluation?.score || 0));
     const overallScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+    
+    // Note: Session saving is now handled by frontend calling POST /api/sessions
+    // This allows the frontend to include user profile data (name, email, confidence levels)
+    
     res.json({ overallScore, results });
   } catch (err: any) {
     console.error(err);
