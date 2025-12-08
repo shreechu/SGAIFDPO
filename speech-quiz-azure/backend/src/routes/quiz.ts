@@ -8,24 +8,27 @@ import axios from "axios";
 import { getSecret, getSecrets } from "../utils/secrets";
 
 const router = Router();
-// Try multiple paths for questions.json (development vs production)
-const possiblePaths = [
-  path.resolve(process.cwd(), "scripts/questions.json"),
-  path.resolve(process.cwd(), "../scripts/questions.json"),
-  path.resolve(__dirname, "../../scripts/questions.json")
-];
-let questions: any[] = [];
-for (const questionsPath of possiblePaths) {
-  try {
-    questions = JSON.parse(readFileSync(questionsPath, "utf8"));
-    console.log("✅ Loaded questions from", questionsPath, "count=", questions.length);
-    break;
-  } catch {
-    // Try next path
+
+// Helper function to load questions dynamically
+function loadQuestions(): any[] {
+  const possiblePaths = [
+    path.resolve(process.cwd(), "scripts/questions.json"),
+    path.resolve(process.cwd(), "../scripts/questions.json"),
+    path.resolve(__dirname, "../../scripts/questions.json")
+  ];
+  
+  for (const questionsPath of possiblePaths) {
+    try {
+      const questions = JSON.parse(readFileSync(questionsPath, "utf8"));
+      console.log("✅ Loaded questions from", questionsPath, "count=", questions.length);
+      return questions;
+    } catch {
+      // Try next path
+    }
   }
-}
-if (questions.length === 0) {
+  
   console.error("❌ Could not load questions.json from any path:", possiblePaths);
+  return [];
 }
 
 // Store quiz sessions with their random question selections
@@ -34,6 +37,7 @@ const quizSessions = new Map<string, any[]>();
 
 // Function to generate random question selection for a quiz session
 function generateQuizQuestions(): any[] {
+  const questions = loadQuestions();
   if (questions.length === 0) return [];
   
   // First question is always the introduction (index 0)

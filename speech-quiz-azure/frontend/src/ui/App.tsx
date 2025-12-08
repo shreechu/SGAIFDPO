@@ -87,6 +87,14 @@ function AppContent() {
   const [loginError, setLoginError] = useState('');
   const [selectedSession, setSelectedSession] = useState<SessionResult | null>(null);
   
+  // Admin config state
+  const [configQuestions, setConfigQuestions] = useState<Question[]>([]);
+  const [configLeniency, setConfigLeniency] = useState(5);
+  const [configLoading, setConfigLoading] = useState(false);
+  const [configSaving, setConfigSaving] = useState(false);
+  const [configMessage, setConfigMessage] = useState('');
+  const [editingQuestion, setEditingQuestion] = useState<string | null>(null);
+  
   const [question, setQuestion] = useState<Question | null>(null);
   const [idx, setIdx] = useState(0);
   const [transcript, setTranscript] = useState("");
@@ -151,6 +159,40 @@ function AppContent() {
   useEffect(() => {
     if (currentPage === 'admin') {
       loadAdminSessions();
+    }
+  }, [currentPage]);
+
+  // Load admin config when on config page
+  useEffect(() => {
+    if (currentPage === 'adminConfig') {
+      const loadConfig = async () => {
+        setConfigLoading(true);
+        setConfigMessage('');
+        try {
+          console.log('Loading admin config from:', axios.defaults.baseURL);
+          const [questionsRes, configRes] = await Promise.all([
+            axios.get('/api/admin/questions'),
+            axios.get('/api/admin/config')
+          ]);
+          console.log('Questions response:', questionsRes.data);
+          console.log('Config response:', configRes.data);
+          
+          // Backend returns { questions: [...], path: "..." }
+          const questionsData = questionsRes.data.questions || questionsRes.data;
+          const questions = Array.isArray(questionsData) ? questionsData : [];
+          console.log('Config loaded successfully:', questions.length, 'questions');
+          setConfigQuestions(questions);
+          setConfigLeniency(configRes.data.leniency || 5);
+        } catch (err: any) {
+          console.error('Failed to load config:', err);
+          const errorMsg = err.response?.data?.error || err.message || 'Failed to load configuration';
+          setConfigMessage(`❌ Error: ${errorMsg}. Please check backend connectivity.`);
+          setConfigQuestions([]); // Reset to empty array on error
+        } finally {
+          setConfigLoading(false);
+        }
+      };
+      loadConfig();
     }
   }, [currentPage]);
 
@@ -1754,6 +1796,35 @@ function AppContent() {
   }
 
   if (currentPage === 'adminConfig') {
+    const handleSaveConfig = async () => {
+      setConfigSaving(true);
+      setConfigMessage('');
+      try {
+        await Promise.all([
+          axios.post('/api/admin/questions', { questions: configQuestions }),
+          axios.post('/api/admin/config', { leniency: configLeniency })
+        ]);
+        setConfigMessage('✅ Configuration saved successfully!');
+        setTimeout(() => setConfigMessage(''), 3000);
+      } catch (err) {
+        console.error('Failed to save config:', err);
+        setConfigMessage('❌ Failed to save configuration');
+      } finally {
+        setConfigSaving(false);
+      }
+    };
+
+    const updateQuestion = (id: string, field: keyof Question, value: any) => {
+      setConfigQuestions(prev => prev.map(q => 
+        q.id === id ? { ...q, [field]: value } : q
+      ));
+    };
+
+    const updateKeyPhrases = (id: string, value: string) => {
+      const phrases = value.split(',').map(p => p.trim()).filter(p => p);
+      updateQuestion(id, 'key_phrases', phrases);
+    };
+
     return (
       <div style={{ 
         minHeight: '100vh', 
@@ -1802,9 +1873,243 @@ function AppContent() {
               </button>
             </div>
           </div>
-          <p style={{ color: '#666', fontSize: '16px' }}>
-            Admin configuration page is under construction. Please use the Admin Dashboard to view evaluation results.
-          </p>
+
+          {configMessage && (
+            <div style={{
+              padding: '12px 16px',
+              backgroundColor: configMessage.startsWith('✅') ? '#d4edda' : '#f8d7da',
+              color: configMessage.startsWith('✅') ? '#155724' : '#721c24',
+              borderRadius: '8px',
+              marginBottom: '1rem'
+            }}>
+              {configMessage}
+            </div>
+          )}
+
+          {configLoading ? (
+            <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>Loading configuration...</div>
+          ) : (
+            <>
+              {/* Leniency Configuration */}
+              <div style={{
+                backgroundColor: '#f8f9fa',
+                padding: '1.5rem',
+                borderRadius: '12px',
+                marginBottom: '2rem'
+              }}>
+                <h2 style={{ margin: '0 0 1rem 0', color: '#1a237e', fontSize: '1.5rem' }}>
+                  Evaluation Leniency
+                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <label style={{ fontSize: '1rem', color: '#666', minWidth: '100px' }}>
+                    Strictness Level:
+                  </label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="10"
+                    value={configLeniency}
+                    onChange={(e) => setConfigLeniency(Number(e.target.value))}
+                    style={{ flex: 1, cursor: 'pointer' }}
+                  />
+                  <div style={{
+                    minWidth: '60px',
+                    padding: '8px 16px',
+                    backgroundColor: '#667eea',
+                    color: 'white',
+                    borderRadius: '8px',
+                    fontWeight: 'bold',
+                    textAlign: 'center'
+                  }}>
+                    {configLeniency}
+                  </div>
+                </div>
+                <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#666' }}>
+                  1 = Very Lenient | 10 = Very Strict
+                </div>
+              </div>
+
+              {/* Questions Configuration */}
+              <div style={{ marginBottom: '2rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <h2 style={{ margin: 0, color: '#1a237e', fontSize: '1.5rem' }}>
+                    Questions ({configQuestions.length})
+                  </h2>
+                  <button
+                    onClick={() => {
+                      const newQuestion: Question = {
+                        id: `q${configQuestions.length + 1}`,
+                        question: 'New question text',
+                        key_phrases: ['key phrase 1', 'key phrase 2'],
+                        topic: 'New Topic',
+                        difficulty: 'medium'
+                      };
+                      setConfigQuestions([...configQuestions, newQuestion]);
+                      setEditingQuestion(newQuestion.id);
+                    }}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: '#667eea',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '0.95rem',
+                      fontWeight: 600,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    ➕ Add Question
+                  </button>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {configQuestions.map((q, index) => (
+                    <div
+                      key={q.id}
+                      style={{
+                        border: '1px solid #ddd',
+                        borderRadius: '12px',
+                        padding: '1.5rem',
+                        backgroundColor: editingQuestion === q.id ? '#f0f7ff' : 'white'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
+                        <h3 style={{ margin: 0, color: '#1a237e', fontSize: '1.1rem' }}>
+                          Question {index + 1}
+                        </h3>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => setEditingQuestion(editingQuestion === q.id ? null : q.id)}
+                            style={{
+                              padding: '6px 12px',
+                              backgroundColor: editingQuestion === q.id ? '#28a745' : '#6c757d',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            {editingQuestion === q.id ? '✓ Done' : '✏️ Edit'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Delete "${q.question.substring(0, 50)}..."?`)) {
+                                setConfigQuestions(configQuestions.filter(question => question.id !== q.id));
+                                if (editingQuestion === q.id) setEditingQuestion(null);
+                              }
+                            }}
+                            style={{
+                              padding: '6px 12px',
+                              backgroundColor: '#dc3545',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontSize: '0.875rem'
+                            }}
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {editingQuestion === q.id ? (
+                        <>
+                          <div style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#333' }}>
+                              Question Text:
+                            </label>
+                            <textarea
+                              value={q.question}
+                              onChange={(e) => updateQuestion(q.id, 'question', e.target.value)}
+                              style={{
+                                width: '100%',
+                                minHeight: '80px',
+                                padding: '12px',
+                                border: '1px solid #ccc',
+                                borderRadius: '8px',
+                                fontSize: '1rem',
+                                fontFamily: 'inherit',
+                                resize: 'vertical'
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600, color: '#333' }}>
+                              Key Phrases (comma-separated):
+                            </label>
+                            <input
+                              type="text"
+                              value={q.key_phrases.join(', ')}
+                              onChange={(e) => updateKeyPhrases(q.id, e.target.value)}
+                              placeholder="e.g., reliability, performance, scalability"
+                              style={{
+                                width: '100%',
+                                padding: '12px',
+                                border: '1px solid #ccc',
+                                borderRadius: '8px',
+                                fontSize: '1rem'
+                              }}
+                            />
+                            <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#666' }}>
+                              Current: {q.key_phrases.length} phrase{q.key_phrases.length !== 1 ? 's' : ''}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p style={{ margin: '0.5rem 0', color: '#333', lineHeight: 1.5 }}>
+                            {q.question}
+                          </p>
+                          <div style={{ marginTop: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                            {q.key_phrases.map((phrase, i) => (
+                              <span
+                                key={i}
+                                style={{
+                                  padding: '4px 12px',
+                                  backgroundColor: '#e7f3ff',
+                                  color: '#0366d6',
+                                  borderRadius: '16px',
+                                  fontSize: '0.875rem',
+                                  fontWeight: 500
+                                }}
+                              >
+                                {phrase}
+                              </span>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Save Button */}
+              <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '1rem' }}>
+                <button
+                  onClick={handleSaveConfig}
+                  disabled={configSaving}
+                  style={{
+                    padding: '14px 32px',
+                    backgroundColor: configSaving ? '#ccc' : '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '1.1rem',
+                    fontWeight: 600,
+                    cursor: configSaving ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 12px rgba(40, 167, 69, 0.3)'
+                  }}
+                >
+                  {configSaving ? '💾 Saving...' : '💾 Save Configuration'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     );
